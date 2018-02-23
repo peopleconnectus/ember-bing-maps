@@ -95,12 +95,18 @@ export default Component.extend({
 
   locations: computed('pins', (pins) => {
     return (pins || []).map( ({ latitude, longitude, options }) => {
-      return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
-    });
+      if (latitude && longitude) {
+        return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
+      }
+      return false;
+    }).filter(Boolean);
   }),
 
   centerBounds: computed('locations', (locations) => {
-    let bounds = Microsoft.Maps.LocationRect.fromLocations(locations.map(l => l.loc));
+    let bounds;
+    if (locations.length) {
+      bounds = Microsoft.Maps.LocationRect.fromLocations(locations.map(l => l.loc));
+    }
     return bounds;
   }),
 
@@ -110,7 +116,7 @@ export default Component.extend({
       mapOpts.bounds = centerBounds;
       delete mapOpts.zoom;
       delete mapOpts.center;
-    } else {
+    } else if (centerBounds) {
       mapOpts.center = centerBounds.center;
       delete mapOpts.bounds;
     }
