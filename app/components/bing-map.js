@@ -45,27 +45,57 @@ export default Component.extend({
     this.removeMap();
   },
 
+  createMap: function() {
+    let el = this.$()[0];
+    let opts = get(this, 'mapOptions');
+
+    this.set('map', new Microsoft.Maps.Map(el, opts));
+    this.updateCenter();
+
+  },
+
   updateCenter: function () {
     let {
       map,
       mapOptions,
       locations,
-    } = getProperties(this, 'map', 'mapOptions', 'locations');
+      onPinClick,
+      onPinMouseDown,
+      onPinMouseOver,
+      onPinMouseOut,
+      onPinMouseUp
+    } = getProperties(this, 'map', 'mapOptions', 'locations', 'onPinClick',
+      'onPinMouseDown', 'onPinMouseOver', 'onPinMouseOut', 'onPinMouseUp'
+    );
 
     if (map) {
       let { center, bounds, zoom, padding } = mapOptions;
       map.setView({ center, bounds, zoom, padding });
+      let infobox = new Microsoft.Maps.Infobox(map.getCenter(), {
+        visible: false
+      });
+      infobox.setMap(map);
       map.entities.clear();
       locations.forEach((location) => {
-        console.log(location.options);
-        return map.entities.push( new Microsoft.Maps.Pushpin(location.loc, location.options))
+        let pin = new Microsoft.Maps.Pushpin(location.loc, location.options);
+        pin.metadata = (location.options || {}).metadata || {};
+        map.entities.push(pin)
+        Microsoft.Maps.Events.addHandler(pin, 'click', (e) => onPinClick(e, infobox, map));
+        Microsoft.Maps.Events.addHandler(pin, 'mousedown', (e) => onPinMouseDown(e, infobox, map));
+        Microsoft.Maps.Events.addHandler(pin, 'mouseout', (e) => onPinMouseOut(e, infobox, map));
+        Microsoft.Maps.Events.addHandler(pin, 'mouseover', (e) => onPinMouseOver(e, infobox, map));
+        Microsoft.Maps.Events.addHandler(pin, 'mouseup', (e) => onPinMouseUp(e, infobox, map));
       });
     }
   },
 
+  removeMap: function() {
+    this.map.dispose();
+  },
+
   locations: computed('pins', (pins) => {
-    return (pins || []).map(pin => {
-      return { loc: new Microsoft.Maps.Location(pin.lat, pin.long), options: pin.options }
+    return (pins || []).map( ({ latitude, longitude, options }) => {
+      return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
     });
   }),
 
@@ -75,7 +105,7 @@ export default Component.extend({
   }),
 
   mapOptions: computed('options', 'defaultOpts', 'locations', 'centerBounds', (options, defaultOpts, locations, centerBounds) => {
-    let mapOpts = Object.assign(defaultOpts, options);
+    let mapOpts = Object.assign({}, defaultOpts, options);
     if (locations.length > 1) {
       mapOpts.bounds = centerBounds;
       delete mapOpts.zoom;
@@ -87,17 +117,20 @@ export default Component.extend({
     return mapOpts;
   }),
 
-  createMap: function() {
-    let el = this.$()[0];
-    let opts = get(this, 'mapOptions');
-
-    console.log(opts);
-    this.set('map', new Microsoft.Maps.Map(el, opts));
-    this.updateCenter();
+  onPinClick: function() {
+    // noop
   },
-
-  removeMap: function() {
-    this.map.dispose();
+  onPinMouseDown: function() {
+    // noop
+  },
+  onPinMouseOver: function() {
+    // noop
+  },
+  onPinMouseUp: function() {
+    // noop
+  },
+  onPinMouseOut: function() {
+    // noop
   }
 });
 
