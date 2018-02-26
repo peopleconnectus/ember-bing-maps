@@ -9,6 +9,8 @@ export default Component.extend({
   pins: null,
   map: null,
   options: {},
+  handlers: [],
+  infoBox: null,
   defaultOpts: {
     zoom: 10,
     padding: 20,
@@ -23,6 +25,13 @@ export default Component.extend({
     disableMapTypeSelectorMouseOver: true,
     // Note the minified navigation bar ignores 'supportedMapTypes'
     navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
+  },
+  events: {
+    pin: {
+      //'click': (e, infoBox, map) => {},
+      //'mousedown': (e, infoBox, map) => {},
+      // ...
+    }
   },
 
   init() {
@@ -50,47 +59,63 @@ export default Component.extend({
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
 
-    this.set('map', new Microsoft.Maps.Map(el, opts));
+    let map = new Microsoft.Maps.Map(el, opts);
+    let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
+      visible: false
+    });
+    infoBox.setMap(map);
+    this.set('map', map);
+    this.set('infoBox', infoBox);
     this.updateCenter();
+  },
 
+  clearEntities: function(map) {
+    let handlers = get(this, 'handlers');
+    (handlers || []).forEach(  Microsoft.Maps.Events.removeHandler );
+    this.set('handlers', []);
+    map.entities.clear();
+  },
+
+  addPinEvents: function(pin) {
+    let {
+      handlers,
+      events,
+      infoBox,
+      map
+    } = getProperties(this, 'handlers', 'events', 'infoBox', 'map');
+    let pinEvents = getWithDefault(events, 'pin', {});
+
+    Object.keys(pinEvents).map( (eventName) => {
+      handlers.push(Microsoft.Maps.Events.addHandler(
+        pin,
+        eventName,
+        (e) => pinEvents[eventName](e, infoBox, map)
+      ));
+    });
   },
 
   updateCenter: function () {
     let {
       map,
       mapOptions,
-      locations,
-      onPinClick,
-      onPinMouseDown,
-      onPinMouseOver,
-      onPinMouseOut,
-      onPinMouseUp
-    } = getProperties(this, 'map', 'mapOptions', 'locations', 'onPinClick',
-      'onPinMouseDown', 'onPinMouseOver', 'onPinMouseOut', 'onPinMouseUp'
-    );
+      locations
+    } = getProperties(this, 'map', 'mapOptions', 'locations');
 
     if (map) {
       let { center, bounds, zoom, padding } = mapOptions;
       map.setView({ center, bounds, zoom, padding });
-      let infobox = new Microsoft.Maps.Infobox(map.getCenter(), {
-        visible: false
-      });
-      infobox.setMap(map);
-      map.entities.clear();
+      this.clearEntities(map);
       locations.forEach((location) => {
         let pin = new Microsoft.Maps.Pushpin(location.loc, location.options);
         pin.metadata = (location.options || {}).metadata || {};
         map.entities.push(pin)
-        Microsoft.Maps.Events.addHandler(pin, 'click', (e) => onPinClick(e, infobox, map));
-        Microsoft.Maps.Events.addHandler(pin, 'mousedown', (e) => onPinMouseDown(e, infobox, map));
-        Microsoft.Maps.Events.addHandler(pin, 'mouseout', (e) => onPinMouseOut(e, infobox, map));
-        Microsoft.Maps.Events.addHandler(pin, 'mouseover', (e) => onPinMouseOver(e, infobox, map));
-        Microsoft.Maps.Events.addHandler(pin, 'mouseup', (e) => onPinMouseUp(e, infobox, map));
+        this.addPinEvents(pin);
       });
     }
   },
 
   removeMap: function() {
+    this.clearEntities();
     this.map.dispose();
   },
 
@@ -123,22 +148,6 @@ export default Component.extend({
     }
     return mapOpts;
   }),
-
-  onPinClick: function() {
-    // noop
-  },
-  onPinMouseDown: function() {
-    // noop
-  },
-  onPinMouseOver: function() {
-    // noop
-  },
-  onPinMouseUp: function() {
-    // noop
-  },
-  onPinMouseOut: function() {
-    // noop
-  }
 });
 
 
