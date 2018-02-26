@@ -47,7 +47,7 @@ export default Component.extend({
   },
 
   createMap: function() {
-    let el = this.$()[0];
+    let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
 
     this.set('map', new Microsoft.Maps.Map(el, opts));
