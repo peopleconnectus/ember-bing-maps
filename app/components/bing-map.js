@@ -2,7 +2,7 @@
 import config from '../config/environment';
 import Component from '@ember/component';
 import computed from 'ember-macro-helpers/computed';
-import { get, getProperties } from '@ember/object';
+import { get, getWithDefault, getProperties } from '@ember/object';
 
 export default Component.extend({
   classNames: ['bing-map'],
@@ -27,10 +27,11 @@ export default Component.extend({
 
   init() {
     this._super();
-    if (!config.bingAPIKey) {
+    let apiKey = getWithDefault(config, 'ember-bing-maps', {}).apiKey;
+    if (!apiKey) {
       throw('Missing bingAPIKey from config/environment');
     }
-    this.set('defaultOpts.credentials', config.bingAPIKey);
+    this.set('defaultOpts.credentials', apiKey);
   },
 
   didInsertElement() {
