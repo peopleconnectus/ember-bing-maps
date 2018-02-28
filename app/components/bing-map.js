@@ -69,11 +69,14 @@ export default Component.extend({
     this.updateCenter();
   },
 
-  clearEntities: function(map) {
+  clearEntities: function() {
+    let map = get(this, 'map');
     let handlers = get(this, 'handlers');
     (handlers || []).forEach(  Microsoft.Maps.Events.removeHandler );
     this.set('handlers', []);
-    map.entities.clear();
+    if (map) {
+      map.entities.clear();
+    }
   },
 
   addPinEvents: function(pin) {
@@ -104,7 +107,7 @@ export default Component.extend({
     if (map) {
       let { center, bounds, zoom, padding } = mapOptions;
       map.setView({ center, bounds, zoom, padding });
-      this.clearEntities(map);
+      this.clearEntities();
       locations.forEach((location) => {
         let pin = new Microsoft.Maps.Pushpin(location.loc, location.options);
         pin.metadata = (location.options || {}).metadata || {};
