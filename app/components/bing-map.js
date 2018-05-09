@@ -1,7 +1,7 @@
 /* global Microsoft */
 import config from '../config/environment';
 import Component from '@ember/component';
-import computed from 'ember-macro-helpers/computed';
+import { computed } from 'ember-awesome-macros';
 import { get, getWithDefault, getProperties } from '@ember/object';
 
 export default Component.extend({
