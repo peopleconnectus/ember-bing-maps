@@ -7,6 +7,9 @@ module.exports = function(environment) {
     environment,
     rootURL: '/',
     locationType: 'auto',
+    'ember-bing-maps': {
+      apiKey: 'insert-key-here'
+    },
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
