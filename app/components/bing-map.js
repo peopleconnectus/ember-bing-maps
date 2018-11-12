@@ -14,17 +14,9 @@ export default Component.extend({
   defaultOpts: {
     zoom: 10,
     padding: 20,
-    mapTypeId: Microsoft.Maps.MapTypeId.road,
     enableClickableLogo: false,
-    supportedMapTypes: [
-      Microsoft.Maps.MapTypeId.road,
-      Microsoft.Maps.MapTypeId.aerial,
-      Microsoft.Maps.MapTypeId.birdseye
-    ],
     showMapTypeSelector: true,
-    disableMapTypeSelectorMouseOver: true,
-    // Note the minified navigation bar ignores 'supportedMapTypes'
-    navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
+    disableMapTypeSelectorMouseOver: true
   },
   events: {
     pin: {
@@ -41,6 +33,21 @@ export default Component.extend({
       throw('Missing bingAPIKey from config/environment');
     }
     this.set('defaultOpts.credentials', apiKey);
+    if (typeof Microsoft !== 'undefined') {
+      let defaultOpts = this.get('defaultOpts');
+      this.set('defaultOpts', Object.assign(defaultOpts,
+        {
+          // Note the minified navigation bar ignores 'supportedMapTypes'
+          supportedMapTypes: [
+            Microsoft.Maps.MapTypeId.road,
+            Microsoft.Maps.MapTypeId.aerial,
+            Microsoft.Maps.MapTypeId.birdseye
+          ],
+          mapTypeId: Microsoft.Maps.MapTypeId.road,
+          navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
+        })
+      );
+    }
   },
 
   didInsertElement() {
@@ -56,6 +63,10 @@ export default Component.extend({
   },
 
   createMap: function() {
+    if (typeof Microsoft === 'undefined') {
+      return;
+    }
+
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
 
@@ -70,9 +81,12 @@ export default Component.extend({
   },
 
   clearEntities: function() {
+    if (typeof Microsoft === 'undefined') {
+      return;
+    }
     let map = get(this, 'map');
     let handlers = get(this, 'handlers');
-    (handlers || []).forEach(  Microsoft.Maps.Events.removeHandler );
+    (handlers || []).forEach( Microsoft.Maps.Events.removeHandler );
     this.set('handlers', []);
     if (map) {
       map.entities.clear();
@@ -80,6 +94,9 @@ export default Component.extend({
   },
 
   addPinEvents: function(pin) {
+    if (typeof Microsoft === 'undefined') {
+      return;
+    }
     let {
       handlers,
       events,
@@ -98,6 +115,9 @@ export default Component.extend({
   },
 
   updateCenter: function () {
+    if (typeof Microsoft === 'undefined') {
+      return;
+    }
     let {
       map,
       mapOptions,
@@ -119,10 +139,16 @@ export default Component.extend({
 
   removeMap: function() {
     this.clearEntities();
-    this.map.dispose();
+    let map = this.get('map');
+    if (map) {
+      map.dispose();
+    }
   },
 
   locations: computed('pins', (pins) => {
+    if (typeof Microsoft === 'undefined') {
+      return [];
+    }
     return (pins || []).map( ({ latitude, longitude, options }) => {
       if (latitude && longitude) {
         return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
@@ -132,6 +158,9 @@ export default Component.extend({
   }),
 
   centerBounds: computed('locations', (locations) => {
+    if (typeof Microsoft === 'undefined') {
+      return {};
+    }
     let bounds;
     if (locations.length) {
       bounds = Microsoft.Maps.LocationRect.fromLocations(locations.map(l => l.loc));
@@ -152,5 +181,3 @@ export default Component.extend({
     return mapOpts;
   }),
 });
-
-
