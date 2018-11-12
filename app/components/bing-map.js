@@ -11,6 +11,7 @@ export default Component.extend({
   options: {},
   handlers: [],
   infoBox: null,
+  didInitialize: false,
   defaultOpts: {
     zoom: 10,
     padding: 20,
@@ -33,7 +34,7 @@ export default Component.extend({
       throw('Missing bingAPIKey from config/environment');
     }
     this.set('defaultOpts.credentials', apiKey);
-    if (typeof Microsoft !== 'undefined') {
+    if ((typeof Microsoft !== 'undefined') && Microsoft && (typeof Microsoft.Maps !== 'undefined')) {
       let defaultOpts = this.get('defaultOpts');
       this.set('defaultOpts', Object.assign(defaultOpts,
         {
@@ -47,26 +48,29 @@ export default Component.extend({
           navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
         })
       );
+      this.set('didInitialize', true);
     }
   },
 
   didInsertElement() {
-    this.createMap();
+    if (this.get('didInitialize')) {
+      this.createMap();
+    }
   },
 
   didReceiveAttrs() {
-    this.updateCenter();
+    if (this.get('didInitialize')) {
+      this.updateCenter();
+    }
   },
 
   willDestroyElement() {
-    this.removeMap();
+    if (this.get('didInitialize')) {
+      this.removeMap();
+    }
   },
 
   createMap: function() {
-    if (typeof Microsoft === 'undefined') {
-      return;
-    }
-
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
 
@@ -81,9 +85,6 @@ export default Component.extend({
   },
 
   clearEntities: function() {
-    if (typeof Microsoft === 'undefined') {
-      return;
-    }
     let map = get(this, 'map');
     let handlers = get(this, 'handlers');
     (handlers || []).forEach( Microsoft.Maps.Events.removeHandler );
@@ -94,9 +95,6 @@ export default Component.extend({
   },
 
   addPinEvents: function(pin) {
-    if (typeof Microsoft === 'undefined') {
-      return;
-    }
     let {
       handlers,
       events,
@@ -115,9 +113,6 @@ export default Component.extend({
   },
 
   updateCenter: function () {
-    if (typeof Microsoft === 'undefined') {
-      return;
-    }
     let {
       map,
       mapOptions,
@@ -146,9 +141,6 @@ export default Component.extend({
   },
 
   locations: computed('pins', (pins) => {
-    if (typeof Microsoft === 'undefined') {
-      return [];
-    }
     return (pins || []).map( ({ latitude, longitude, options }) => {
       if (latitude && longitude) {
         return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
@@ -158,9 +150,6 @@ export default Component.extend({
   }),
 
   centerBounds: computed('locations', (locations) => {
-    if (typeof Microsoft === 'undefined') {
-      return {};
-    }
     let bounds;
     if (locations.length) {
       bounds = Microsoft.Maps.LocationRect.fromLocations(locations.map(l => l.loc));
