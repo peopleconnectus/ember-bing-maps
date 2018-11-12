@@ -11,20 +11,13 @@ export default Component.extend({
   options: {},
   handlers: [],
   infoBox: null,
+  didInitialize: false,
   defaultOpts: {
     zoom: 10,
     padding: 20,
-    mapTypeId: Microsoft.Maps.MapTypeId.road,
     enableClickableLogo: false,
-    supportedMapTypes: [
-      Microsoft.Maps.MapTypeId.road,
-      Microsoft.Maps.MapTypeId.aerial,
-      Microsoft.Maps.MapTypeId.birdseye
-    ],
     showMapTypeSelector: true,
-    disableMapTypeSelectorMouseOver: true,
-    // Note the minified navigation bar ignores 'supportedMapTypes'
-    navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
+    disableMapTypeSelectorMouseOver: true
   },
   events: {
     pin: {
@@ -41,18 +34,40 @@ export default Component.extend({
       throw('Missing bingAPIKey from config/environment');
     }
     this.set('defaultOpts.credentials', apiKey);
+    if ((typeof Microsoft !== 'undefined') && Microsoft && (typeof Microsoft.Maps !== 'undefined')) {
+      let defaultOpts = this.get('defaultOpts');
+      this.set('defaultOpts', Object.assign(defaultOpts,
+        {
+          // Note the minified navigation bar ignores 'supportedMapTypes'
+          supportedMapTypes: [
+            Microsoft.Maps.MapTypeId.road,
+            Microsoft.Maps.MapTypeId.aerial,
+            Microsoft.Maps.MapTypeId.birdseye
+          ],
+          mapTypeId: Microsoft.Maps.MapTypeId.road,
+          navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
+        })
+      );
+      this.set('didInitialize', true);
+    }
   },
 
   didInsertElement() {
-    this.createMap();
+    if (this.get('didInitialize')) {
+      this.createMap();
+    }
   },
 
   didReceiveAttrs() {
-    this.updateCenter();
+    if (this.get('didInitialize')) {
+      this.updateCenter();
+    }
   },
 
   willDestroyElement() {
-    this.removeMap();
+    if (this.get('didInitialize')) {
+      this.removeMap();
+    }
   },
 
   createMap: function() {
@@ -72,7 +87,7 @@ export default Component.extend({
   clearEntities: function() {
     let map = get(this, 'map');
     let handlers = get(this, 'handlers');
-    (handlers || []).forEach(  Microsoft.Maps.Events.removeHandler );
+    (handlers || []).forEach( Microsoft.Maps.Events.removeHandler );
     this.set('handlers', []);
     if (map) {
       map.entities.clear();
@@ -119,7 +134,10 @@ export default Component.extend({
 
   removeMap: function() {
     this.clearEntities();
-    this.map.dispose();
+    let map = this.get('map');
+    if (map) {
+      map.dispose();
+    }
   },
 
   locations: computed('pins', (pins) => {
@@ -152,5 +170,3 @@ export default Component.extend({
     return mapOpts;
   }),
 });
-
-
