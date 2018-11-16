@@ -70,17 +70,70 @@ export default Component.extend({
     }
   },
 
+  addCustomInfoBoxes: function(locations, map) {
+    let infoboxTemplate =
+      `<style>
+        /* CSS styles used by custom infobox template */
+        .dialogue-box {
+          background: #fff;
+          padding: 5px;
+          border-radius: 1px;
+          position: relative;
+          box-shadow: 3px 3px 2px rgba(50, 50, 50, 0.25);
+          right: -26px;
+          top: -7px;
+          border: 1px solid #eee;
+          border-left: 0px;
+        }
+
+        .triangle {
+            width: 30px;
+            height: 30px;
+            position: relative;
+            overflow: hidden;
+            transform: rotate(45deg);
+            position: absolute;
+            left: -25px;
+            top: 2.5px;
+            z-index: -1;
+        }
+
+        .triangle:after {
+            content: "";
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #fff;
+            border: 1px solid #eee;
+        }
+      </style>
+      <div class="dialogue-box">
+        {description}
+        <div class="triangle"></div>
+      </div>`;
+
+    let phoneNumberRegistrationInfoBox = new Microsoft.Maps.Infobox(locations[0].loc, {
+      htmlContent: infoboxTemplate.replace('{description}', 'Phone number registration')
+    });
+    let ownerAddressInfoBox = new Microsoft.Maps.Infobox(locations[1].loc, {
+      htmlContent: infoboxTemplate.replace('{description}', 'Owner\'s address')
+    });
+
+    phoneNumberRegistrationInfoBox.setMap(map);
+    ownerAddressInfoBox.setMap(map);
+  },
+
   createMap: function() {
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
-
     let map = new Microsoft.Maps.Map(el, opts);
-    let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
-      visible: false
-    });
-    infoBox.setMap(map);
+    let locations = get(this, 'locations');
+    let isCreatingSummaryModuleMap = locations[0].options;
+
+    if(isCreatingSummaryModuleMap){
+      this.addCustomInfoBoxes(locations, map);
+  }
     this.set('map', map);
-    this.set('infoBox', infoBox);
     this.updateCenter();
   },
 
@@ -126,7 +179,7 @@ export default Component.extend({
       locations.forEach((location) => {
         let pin = new Microsoft.Maps.Pushpin(location.loc, location.options);
         pin.metadata = (location.options || {}).metadata || {};
-        map.entities.push(pin)
+        map.entities.push(pin);
         this.addPinEvents(pin);
       });
     }
