@@ -70,69 +70,20 @@ export default Component.extend({
     }
   },
 
-  addCustomInfoBoxes: function(locations, map) {
-    let infoboxTemplate =
-      `<style>
-        /* CSS styles used by custom infobox template */
-        .dialogue-box {
-          background: #fff;
-          padding: 5px;
-          border-radius: 1px;
-          position: relative;
-          box-shadow: 3px 3px 2px rgba(50, 50, 50, 0.25);
-          right: -26px;
-          top: -7px;
-          border: 1px solid #eee;
-          border-left: 0px;
-        }
-
-        .triangle {
-            width: 30px;
-            height: 30px;
-            position: relative;
-            overflow: hidden;
-            transform: rotate(45deg);
-            position: absolute;
-            left: -25px;
-            top: 2.5px;
-            z-index: -1;
-        }
-
-        .triangle:after {
-            content: "";
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            background: #fff;
-            border: 1px solid #eee;
-        }
-      </style>
-      <div class="dialogue-box">
-        {description}
-        <div class="triangle"></div>
-      </div>`;
-
-    let phoneNumberRegistrationInfoBox = new Microsoft.Maps.Infobox(locations[0].loc, {
-      htmlContent: infoboxTemplate.replace('{description}', 'Phone number registration')
+  addCustomInfoBoxes: function(map, customInfoBoxes) {
+    customInfoBoxes.forEach((customInfoBox) => {
+      customInfoBox.content.setMap(map);
     });
-    let ownerAddressInfoBox = new Microsoft.Maps.Infobox(locations[1].loc, {
-      htmlContent: infoboxTemplate.replace('{description}', 'Owner\'s address')
-    });
-
-    phoneNumberRegistrationInfoBox.setMap(map);
-    ownerAddressInfoBox.setMap(map);
   },
 
   createMap: function() {
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
     let map = new Microsoft.Maps.Map(el, opts);
-    let locations = get(this, 'locations');
-    let isCreatingSummaryModuleMap = locations[0].options;
-
-    if(isCreatingSummaryModuleMap){
-      this.addCustomInfoBoxes(locations, map);
-  }
+    let customInfoBoxes = get(this, 'customInfoBoxes');
+    if(customInfoBoxes){
+      this.addCustomInfoBoxes(map, customInfoBoxes);
+    }
     this.set('map', map);
     this.updateCenter();
   },
@@ -197,6 +148,19 @@ export default Component.extend({
     return (pins || []).map( ({ latitude, longitude, options }) => {
       if (latitude && longitude) {
         return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
+      }
+      return false;
+    }).filter(Boolean);
+  }),
+
+  customInfoBoxes: computed('infoBoxes', (infoBoxes) => {
+    return (infoBoxes || []).map(({ infoBoxTemplate, description, location }) => {
+      if (infoBoxTemplate && description && location) {
+        return {
+          content: new Microsoft.Maps.Infobox(new Microsoft.Maps.Location(location.latitude, location.longitude), {
+            htmlContent: infoBoxTemplate.replace('{description}', description)
+          })
+        }
       }
       return false;
     }).filter(Boolean);
