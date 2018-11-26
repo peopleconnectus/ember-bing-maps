@@ -71,6 +71,16 @@ export default Component.extend({
   },
 
   addCustomInfoBoxes: function(map, customInfoBoxes) {
+    customInfoBoxes = (customInfoBoxes || []).map(({ infoBoxTemplate, description, location }) => {
+      if (infoBoxTemplate && description && location) {
+        return {
+          content: new Microsoft.Maps.Infobox(new Microsoft.Maps.Location(location.latitude, location.longitude), {
+            htmlContent: infoBoxTemplate.replace('{description}', description)
+          })
+        }
+      }
+      return false;
+    }).filter(Boolean);
     customInfoBoxes.forEach((customInfoBox) => {
       customInfoBox.content.setMap(map);
     });
@@ -80,7 +90,14 @@ export default Component.extend({
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
     let map = new Microsoft.Maps.Map(el, opts);
-    let customInfoBoxes = get(this, 'customInfoBoxes');
+
+    let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
+      visible: false
+    });
+
+    this.set('infoBox', infoBox);
+
+    let customInfoBoxes = get(this, 'infoBoxes');
     if(customInfoBoxes){
       this.addCustomInfoBoxes(map, customInfoBoxes);
     }
@@ -148,19 +165,6 @@ export default Component.extend({
     return (pins || []).map( ({ latitude, longitude, options }) => {
       if (latitude && longitude) {
         return { loc: new Microsoft.Maps.Location(latitude, longitude), options}
-      }
-      return false;
-    }).filter(Boolean);
-  }),
-
-  customInfoBoxes: computed('infoBoxes', (infoBoxes) => {
-    return (infoBoxes || []).map(({ infoBoxTemplate, description, location }) => {
-      if (infoBoxTemplate && description && location) {
-        return {
-          content: new Microsoft.Maps.Infobox(new Microsoft.Maps.Location(location.latitude, location.longitude), {
-            htmlContent: infoBoxTemplate.replace('{description}', description)
-          })
-        }
       }
       return false;
     }).filter(Boolean);
