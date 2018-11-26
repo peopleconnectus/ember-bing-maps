@@ -70,17 +70,38 @@ export default Component.extend({
     }
   },
 
+  addCustomInfoBoxes: function(map, customInfoBoxes) {
+    customInfoBoxes = (customInfoBoxes || []).map(({ infoBoxTemplate, description, location }) => {
+      if (infoBoxTemplate && description && location) {
+        return {
+          content: new Microsoft.Maps.Infobox(new Microsoft.Maps.Location(location.latitude, location.longitude), {
+            htmlContent: infoBoxTemplate.replace('{description}', description)
+          })
+        }
+      }
+      return false;
+    }).filter(Boolean);
+    customInfoBoxes.forEach((customInfoBox) => {
+      customInfoBox.content.setMap(map);
+    });
+  },
+
   createMap: function() {
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
-
     let map = new Microsoft.Maps.Map(el, opts);
+
     let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
       visible: false
     });
-    infoBox.setMap(map);
-    this.set('map', map);
+
     this.set('infoBox', infoBox);
+
+    let customInfoBoxes = get(this, 'infoBoxes');
+    if(customInfoBoxes){
+      this.addCustomInfoBoxes(map, customInfoBoxes);
+    }
+    this.set('map', map);
     this.updateCenter();
   },
 
@@ -126,7 +147,7 @@ export default Component.extend({
       locations.forEach((location) => {
         let pin = new Microsoft.Maps.Pushpin(location.loc, location.options);
         pin.metadata = (location.options || {}).metadata || {};
-        map.entities.push(pin)
+        map.entities.push(pin);
         this.addPinEvents(pin);
       });
     }
