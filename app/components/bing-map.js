@@ -34,7 +34,7 @@ export default Component.extend({
       throw('Missing bingAPIKey from config/environment');
     }
     this.set('defaultOpts.credentials', apiKey);
-    if ((typeof Microsoft !== 'undefined') && Microsoft && (typeof Microsoft.Maps !== 'undefined')) {
+    try {
       let defaultOpts = this.get('defaultOpts');
       this.set('defaultOpts', Object.assign(defaultOpts,
         {
@@ -49,6 +49,9 @@ export default Component.extend({
         })
       );
       this.set('didInitialize', true);
+    } catch(e) {
+      // eslint-disable-line no-console
+      console.log('There was an error: ', e);
     }
   },
 
