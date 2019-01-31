@@ -2,6 +2,7 @@ import config from '../config/environment';
 import Component from '@ember/component';
 import { computed } from 'ember-awesome-macros';
 import { get, getWithDefault, getProperties } from '@ember/object';
+import RSVP from 'rsvp';
 
 export default Component.extend({
   Microsoft: null,
@@ -11,13 +12,36 @@ export default Component.extend({
   options: {},
   handlers: [],
   infoBox: null,
-  didInitialize: false,
   defaultOpts: {
     zoom: 10,
     padding: 20,
+    birdseyeFallback: {
+      type: 'aerial',
+      zoom: 15,
+      navBarMode: 'minified',
+      navBarOrientation: 'vertical',
+    },
+    defaultCenter: { location: { latitude: '45.0', longitude: '-100.0' }, width: 20, height: 28 },
     enableClickableLogo: false,
     showMapTypeSelector: true,
-    disableMapTypeSelectorMouseOver: true
+    showTrafficButton: false,
+    // Note: this does nothing for minified/compact menu view in birdseye...
+    // allowHidingLabelsOfRoad: false,
+    disableMapTypeSelectorMouseOver: true,
+    // Note; bing ignores this unless its adding MORE types like the canvasDark et al...
+    supportedMapTypes: [
+      //'road',
+      //'aerial',
+      //'streetside',
+      'birdseye'
+    ],
+    // Note: vertical + minified + birdseye = NO MENU...
+    // Please also note birdseyeFallback in case birdseye is not available
+    mapType: 'road',
+    // also note that minified is not supported for birdseye - Dafuck bing, serz?
+    // this means if you start in birdseye, exit to aerial you cant get back in too...fun
+    navBarMode: 'minified',
+    navBarOrientation: 'vertical',
   },
   events: {
     pin: {
@@ -29,50 +53,23 @@ export default Component.extend({
 
   init() {
     this._super();
-
-    let Microsoft = this.get('Microsoft');
     let apiKey = getWithDefault(config, 'ember-bing-maps', {}).apiKey;
     if (!apiKey) {
       throw ('Missing bingAPIKey from config/environment');
     }
     this.set('defaultOpts.credentials', apiKey);
-    try {
-      let defaultOpts = this.get('defaultOpts');
-      this.set('defaultOpts', Object.assign(defaultOpts,
-        {
-          // Note the minified navigation bar ignores 'supportedMapTypes'
-          supportedMapTypes: [
-            Microsoft.Maps.MapTypeId.road,
-            Microsoft.Maps.MapTypeId.aerial,
-            Microsoft.Maps.MapTypeId.birdseye
-          ],
-          mapTypeId: Microsoft.Maps.MapTypeId.road,
-          navigationBarMode: Microsoft.Maps.NavigationBarMode.minified
-        })
-      );
-      this.set('didInitialize', true);
-    } catch (e) {
-      // eslint-disable-line no-console
-      console.log('There was an error: ', e);
-    }
   },
 
   didInsertElement() {
-    if (this.get('didInitialize')) {
-      this.createMap();
-    }
+    this.createMap();
   },
 
   didReceiveAttrs() {
-    if (this.get('didInitialize')) {
-      this.updateCenter();
-    }
+    this.updateCenter();
   },
 
   willDestroyElement() {
-    if (this.get('didInitialize')) {
-      this.removeMap();
-    }
+    this.removeMap();
   },
 
   addCustomInfoBoxes: function (map, customInfoBoxes) {
@@ -92,23 +89,27 @@ export default Component.extend({
   },
 
   createMap: function () {
+    let Microsoft = this.get('Microsoft');
     let el = get(this, 'element');
     let opts = get(this, 'mapOptions');
-    let Microsoft = this.get('Microsoft');
-    let map = new Microsoft.Maps.Map(el, opts);
 
-    let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
-      visible: false
-    });
+    this.getMapTypeId(opts).then(options => {
+      let map = new Microsoft.Maps.Map(el, options);
 
-    this.set('infoBox', infoBox);
+      let infoBox = new Microsoft.Maps.Infobox(map.getCenter(), {
+        visible: false
+      });
 
-    let customInfoBoxes = get(this, 'infoBoxes');
-    if (customInfoBoxes) {
-      this.addCustomInfoBoxes(map, customInfoBoxes);
-    }
-    this.set('map', map);
-    this.updateCenter();
+      this.set('infoBox', infoBox);
+
+      let customInfoBoxes = get(this, 'infoBoxes');
+      if (customInfoBoxes) {
+        this.addCustomInfoBoxes(map, customInfoBoxes);
+      }
+
+      this.set('map', map);
+      this.updateCenter();
+    })
   },
 
   clearEntities: function () {
@@ -122,6 +123,7 @@ export default Component.extend({
     }
   },
 
+  // Useful for things like on-click re-center map, pop dialog box, others..
   addPinEvents: function (pin) {
     let {
       handlers,
@@ -191,21 +193,75 @@ export default Component.extend({
     return bounds;
   }),
 
-  mapOptions: computed('options', 'defaultOpts', 'locations', 'centerBounds', (options, defaultOpts, locations, centerBounds) => {
-    let mapOpts = Object.assign({}, defaultOpts, options);
+  setCenterBasedOnLocations: function (opts, locations) {
+    let centerBounds = this.get('centerBounds');
+
     if (locations.length > 1) {
-      mapOpts.bounds = centerBounds;
-      delete mapOpts.zoom;
-      delete mapOpts.center;
+      opts.bounds = centerBounds;
     } else if (centerBounds) {
-      mapOpts.center = centerBounds.center;
-      delete mapOpts.bounds;
-    } else {
-      // Should probably be configurable
-      mapOpts.bounds = new Microsoft.Maps.LocationRect({ latitude: '45.0', longitude: '-100.0' }, 20, 28);
-      delete mapOpts.zoom;
-      delete mapOpts.center;
+      opts.center = centerBounds.center;
     }
-    return mapOpts;
+
+    // WTF bing why do you do this to me?
+    if (opts.center) {
+      delete opts.bounds;
+    }
+    if (opts.bounds) {
+      delete opts.center;
+      delete opts.zoom;
+    }
+  },
+
+  mapOptions: computed('options', 'defaultOpts', 'locations', function(options, defaultOpts, locations) {
+    let opts = Object.assign({}, defaultOpts, options);
+    let Microsoft = this.get('Microsoft');
+
+    // Microsoft-ize em all here -- these need documentation
+    opts.bounds = new Microsoft.Maps.LocationRect(opts.defaultCenter.location, opts.defaultCenter.width, opts.defaultCenter.height);
+    opts.supportedMapTypes = opts.supportedMapTypes.map(mType => Microsoft.Maps.MapTypeId[mType] || mType);
+    opts.navigationBarMode = Microsoft.Maps.NavigationBarMode[opts.navBarMode];
+    opts.navigationBarOrientation = Microsoft.Maps.NavigationBarOrientation[opts.navBarOrientation];
+
+    this.setCenterBasedOnLocations(opts, locations);
+
+    return opts;
   }),
+
+  getMapTypeId: function(options) {
+    let Microsoft = this.get('Microsoft');
+    options.mapTypeId = Microsoft.Maps.MapTypeId[options.mapType];
+    if (options.mapTypeId === Microsoft.Maps.MapTypeId.birdseye) {
+      return this.checkBirdseye().then((isAvail) => {
+        if (!isAvail) {
+          let config = options.birdseyeFallback;
+          options.mapTypeId = Microsoft.Maps.MapTypeId[config.type];
+          options.zoom = config.zoom;
+          options.navigationBarMode = Microsoft.Maps.NavigationBarMode[config.navBarMode];
+          options.navigationBarOrientation = Microsoft.Maps.NavigationBarOrientation[config.navBarOrientation];
+        }
+        return options;
+      });
+    }
+    return RSVP.resolve(options);
+  },
+
+  checkBirdseye: function() {
+    let location = this.get('centerBounds.center');
+    let deferred = RSVP.defer();
+    let Microsoft = this.get('Microsoft');
+
+    if (!location) {
+      deferred.resolve(false);
+    } else {
+      Microsoft.Maps.getIsBirdseyeAvailable(location, Microsoft.Maps.Heading.north, (isAvailable) => {
+        if (!isAvailable) {
+          deferred.resolve(false);
+        }
+        deferred.resolve(true);
+      });
+    }
+    return deferred.promise;
+  }
+
+
 });

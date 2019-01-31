@@ -8,8 +8,8 @@ moduleForComponent('bing-map', 'Integration | Component | bing map', {
 test('it renders', function(assert) {
   let coords = [
     {
-      lat: 31.231,
-      long: 90.2312,
+      latitude: 31.231,
+      longitude: 90.2312,
       title: 'test'
     }
   ];
