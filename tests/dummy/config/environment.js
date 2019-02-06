@@ -8,7 +8,7 @@ module.exports = function(environment) {
     rootURL: '/',
     locationType: 'auto',
     'ember-bing-maps': {
-      apiKey: 'insert-key-here'
+      apiKey: 'insert-key-here-for-testing'
     },
     EmberENV: {
       FEATURES: {
